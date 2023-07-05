@@ -1,0 +1,128 @@
+clear;
+close all;
+clc;
+
+addpath('~/TUDelft/Code/GSH/Tools/')
+load sc_2.mat
+%%
+filename = 'megt90n000cb.img';
+resolution = 4;
+
+% Read in the file.
+f = fopen(filename,'r','ieee-be');
+el4 = fread(f,[360*resolution Inf],'int16')';
+fclose(f); 
+Gconst=6.67E-11;
+%%
+
+latLimT = [-90+(1/resolution/2) 90-(1/resolution/2) 1/resolution]; 
+lonLimT = [1/resolution/2  360-(1/resolution/2) 1/resolution]; 
+
+lonT = lonLimT(1):lonLimT(3):lonLimT(2);
+latT = fliplr(latLimT(1):latLimT(3):latLimT(2));
+LonT = repmat(lonT,length(latT),1);
+LatT = repmat(latT',1,length(lonT));
+
+aa = 18;
+figure
+imagesc(lonT,latT,el4./1e3);cc=colorbar('Ticks',[-8.0680, -4, 0, 4, 8.5, 13, 17, 21.1340]);
+xlabel('Longitude (\circ)','Fontsize',aa)
+ylabel('Latitude (\circ)','Fontsize',aa)
+ylabel(cc,'Altitude (km)','Fontsize',aa)
+set(gca,'YDir','normal','Fontsize',aa)
+title('Topography of Mars')
+
+%%%%%%%%%%%%%
+%reducing the matrix of the topography for coherence with gravity matrix
+G=zeros(720,360);
+G_2=zeros(180,360);
+for j=1:720
+for i=4:4:1440
+G(j,i/4)=(el4(j,i)+el4(j,i-1)+el4(j,i-2)+el4(j,i-3))/4;
+end
+end
+for i=4:4:720
+G_2(i/4,:)=(G(i,:)+G(i-1,:)+G(i-2,:)+G(i-3,:))/4;
+end
+%calcolating the free-air correction
+el45=G_2*2*pi()*Gconst*2950;
+%plotting the free-air correction
+aa = 18;
+figure
+imagesc(lonT,latT,el45*1e5);cc=colorbar;
+xlabel('Longitude (\circ)','Fontsize',aa)
+ylabel('Latitude (\circ)','Fontsize',aa)
+ylabel(cc,'\delta g_B [mGal]','Fontsize',aa)
+set(gca,'YDir','normal','Fontsize',aa)
+%importing and adjusting the gravity data
+load VecZ
+VecZcorr=zeros(180,360);
+for i=1:180
+    for k=1:180
+    VecZcorr(i,k)=VecZ(i,180+k);
+    VecZcorr(i,180+k)=VecZ(i,k);
+    end
+end
+VecZcorr=-flip(VecZcorr);
+
+%plotting the gravity data
+aa = 18;
+figure
+imagesc(lonT,latT,VecZcorr*1e5);cc=colorbar;
+xlabel('Longitude (\circ)','Fontsize',aa)
+ylabel('Latitude (\circ)','Fontsize',aa)
+ylabel(cc,'VecZcorr [mGal]','Fontsize',aa)
+set(gca,'YDir','normal','Fontsize',aa)
+
+%calcolating and plotting the Bouguer anomaly
+Bouguer=VecZcorr-(el45);
+aa = 18;
+figure
+imagesc(lonT,latT,Bouguer*1e5);cc=colorbar;
+xlabel('Longitude (\circ)','Fontsize',aa)
+ylabel('Latitude (\circ)','Fontsize',aa)
+ylabel(cc,'Residual [mGal]','Fontsize',aa)
+set(gca,'YDir','normal','Fontsize',aa)
+title('Bouguer Anomaly Map')
+
+
+
+
+
+
+
+% %% GSHA
+% 
+% cs = GSHA(el4,110);
+% sc = cs2sc(cs);
+% 
+% n = 1:size(sc_2,1);
+% % D = ETe^3/(12(1-nu^2))
+% D = 100e9*(60e3)^3/(12*(1-0.27^2));
+% % Phi = 1 * (D/(rhom-rhoc)g)*(2(n+1)/2R)^4)-1
+% PHI = (1 + (D)/(300*3.72).*(2.*(n+1)./(2*3389500)).^4).^(-1);
+% 
+% sc_flex = zeros(size(sc));
+% 
+% for m = 1:size(sc)
+%     sc_flex(:,m) = sc(:,m).*PHI';
+% end
+% 
+% %% GSHS
+% 
+% mapf = GSHS(sc_flex,lonT,90-latT,110);
+% 
+% %%
+% figure
+% imagesc(lonT,latT,mapf./1e3);cc=colorbar;
+% xlabel('Longitude (\circ)','Fontsize',aa)
+% ylabel('Latitude (\circ)','Fontsize',aa)
+% ylabel(cc,'Topography (km)','Fontsize',aa)
+% set(gca,'YDir','normal','Fontsize',aa)
+% 
+% figure
+% imagesc(lonT,latT,(el4-mapf)./1e3);cc=colorbar;
+% xlabel('Longitude (\circ)','Fontsize',aa)
+% ylabel('Latitude (\circ)','Fontsize',aa)
+% ylabel(cc,'Topography (km)','Fontsize',aa)
+% set(gca,'YDir','normal','Fontsize',aa)
